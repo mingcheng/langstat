@@ -1,0 +1,193 @@
+#!#
+# Copyright (c) 2025 Hangzhou Guanwaii Technology Co., Ltd.
+#
+# This source code is licensed under the MIT License,
+# which is located in the LICENSE file in the source tree's root directory.
+#
+# File: r.yml
+# Author: mingcheng <mingcheng@apache.org>
+# File Created: 2025-10-25 17:30:24
+#
+# Modified By: mingcheng <mingcheng@apache.org>
+# Last Modified: 2025-10-25 23:56:06
+##
+
+name: GitHub Repository Language Statistics
+
+on:
+  # Run monthly on the 1st day at 00:00 UTC
+  schedule:
+    - cron: "0 0 1 * *"
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      github_username:
+        description: "GitHub username to analyze"
+        required: true
+        default: "mingcheng"
+
+  # Run on push to main branch (for testing)
+  push:
+    branches:
+      - main
+    paths:
+      - "R/**"
+      - ".github/workflows/r.yml"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.1"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libfontconfig1-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libfreetype6-dev \
+            libpng-dev \
+            libtiff5-dev \
+            libjpeg-dev
+
+      - name: Cache R packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-r-4.5.1-${{ hashFiles('R/*.R') }}
+          restore-keys: |
+            ${{ runner.os }}-r-4.5.1-
+            ${{ runner.os }}-r-
+
+      - name: Install R dependencies
+        run: |
+          Rscript -e '
+          packages <- c("httr", "jsonlite", "dplyr", "magrittr", "showtext", "ggplot2", "treemapify", "svglite")
+          new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+          if(length(new_packages)) {
+            install.packages(new_packages, repos="https://cloud.r-project.org", dependencies=TRUE)
+          }
+          '
+        shell: bash
+
+      - name: Run analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USERNAME: ${{ inputs.github_username || github.repository_owner }}
+        run: |
+          echo "Analyzing GitHub user: $GITHUB_USERNAME"
+          Rscript R/main.R 2>&1 | tee analysis.log
+        shell: bash
+        continue-on-error: false
+
+      - name: Upload analysis logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: analysis-logs-${{ github.run_number }}
+          path: analysis.log
+          retention-days: 30
+
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: language-statistics-${{ github.run_number }}
+          path: |
+            data/
+            !data/**/*.json
+          retention-days: 90
+
+      - name: Commit and push results to data branch
+        run: |
+          set -e  # Exit on error
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Get username for commit message
+          USERNAME="${{ inputs.github_username || github.repository_owner }}"
+          TODAY=$(date +'%Y%m%d')
+
+          # Store the newly generated files
+          mkdir -p /tmp/langstat-new-files
+          cp -r data /tmp/langstat-new-files/
+
+          # Fetch all branches
+          git fetch origin
+
+          # Check if data branch exists remotely
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            echo "Data branch exists, checking out..."
+            git switch -f data
+            git pull origin data
+          else
+            echo "Creating new orphan data branch..."
+            git switch --orphan data
+            # Clean up all files on new orphan branch
+            git rm -rf . 2>/dev/null || true
+            # Remove any untracked files except .git
+            find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
+            # Create data directory structure
+            mkdir -p data
+          fi
+
+          # Merge new files into existing data directory
+          # This will overwrite files with the same name and keep other files
+          echo "Copying new generated files..."
+          cp -rf /tmp/langstat-new-files/data/* data/
+
+          # Clean up backup
+          rm -rf /tmp/langstat-new-files
+
+          # Add all changes
+          git add data/
+
+          # Check if there are any changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Show what files were changed
+          echo "Files changed:"
+          git diff --staged --name-only
+
+          COMMIT_DATE=$(date +'%Y-%m-%d')
+          git commit -m "chore: update language statistics for ${USERNAME} on ${COMMIT_DATE}" \
+                     -m "Generated by GitHub Actions workflow run #${{ github.run_number }}"
+
+          # Push with retry logic
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push origin data; then
+              echo "Successfully pushed to data branch"
+              exit 0
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "Push failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
+            sleep 2
+            git pull origin data --rebase
+          done
+
+          echo "Failed to push after $MAX_RETRIES attempts"
+          exit 1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
