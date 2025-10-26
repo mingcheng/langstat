@@ -21,9 +21,9 @@ They are the examples output for my [GitHub profile](https://github.com/mingchen
   - Repository update recency
   - Stars and forks count
   - Repository count per language
-- Generates multiple visualizations:
-  - Pie charts (SVG & PNG formats)
-  - Treemaps (SVG & PNG formats)
+- Generates multiple visualizations, both in SVG and PNG formats:
+  - Pie Charts
+  - Treemaps
 - Automated monthly updates via GitHub Actions
 
 We use the [Sometype Mono font](https://monospacedfont.com/) for better representation in the charts, thanks for providing such a great free font!
@@ -48,8 +48,8 @@ The workflow runs automatically on the 1st of each month, or can be triggered ma
 data/{username}/
 ├── raw_YYYYMMDD.json       # Raw API response
 ├── plotted_YYYYMMDD.csv    # Statistical summary
-├── chart_YYYYMMDD.svg      # Date-stamped pie chart
-├── chart_YYYYMMDD.png
+├── piechart_YYYYMMDD.svg   # Date-stamped pie chart
+├── piechart_YYYYMMDD.png
 ├── treemap_YYYYMMDD.svg    # Date-stamped treemap
 ├── treemap_YYYYMMDD.png
 ├── latest.svg              # Latest pie chart
