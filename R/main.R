@@ -53,7 +53,13 @@ if (file.exists(raw_file_name)) {
   json_data <- fromJSON(raw_file_name)
   message("Loaded cached data from ", raw_file_name)
 } else {
-  json_data <- fetch_json(username)
+  # Check for HTTP proxy settings
+  proxy <- Sys.getenv("HTTP_PROXY", unset = NA)
+  if (!is.na(proxy) && proxy != "") {
+    message("Using proxy: ", proxy)
+  }
+
+  json_data <- fetch_json(username, proxy)
   if (is.null(json_data)) {
     stop("Failed to fetch data from GitHub API")
   }
