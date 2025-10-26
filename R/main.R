@@ -54,8 +54,11 @@ if (file.exists(raw_file_name)) {
   message("Loaded cached data from ", raw_file_name)
 } else {
   # Check for HTTP proxy settings
-  proxy <- Sys.getenv("HTTP_PROXY", unset = NA)
-  if (!is.na(proxy) && proxy != "") {
+  proxy <- Sys.getenv("HTTP_PROXY", unset = "")
+  if (is.null(proxy) || proxy == "") {
+    proxy <- NULL
+    message("No proxy configured.")
+  } else {
     message("Using proxy: ", proxy)
   }
 
