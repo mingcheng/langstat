@@ -9,7 +9,7 @@
 # File Created: 2025-10-25 23:36:10
 #
 # Modified By: mingcheng <mingcheng@apache.org>
-# Last Modified: 2025-10-26 10:28:05
+# Last Modified: 2025-10-26 11:19:07
 ##
 
 if (!require("showtext", quietly = TRUE)) {
@@ -20,7 +20,7 @@ if (!require("showtext", quietly = TRUE)) {
 generate_pie_chart <- function(username, repos, dir_name, json_data) {
   # Setup font for visualization
   tryCatch(
-    font_add("SometypeMono", regular = "../assets/SometypeMono.ttf"),
+    font_add("FiraCode", regular = "../assets/FiraCode.ttf"),
     error = function(e) {
       warning("Failed to load custom font, using default: ", e$message)
     }
@@ -35,7 +35,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
       bg = "white",
       mai = c(0.5, 0.5, 0.8, 0.5),
       lwd = 1,
-      family = "SometypeMono"
+      family = "FiraCode"
     )
 
     pie(

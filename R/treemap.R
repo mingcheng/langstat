@@ -9,7 +9,7 @@
 # File Created: 2025-10-25 23:41:07
 #
 # Modified By: mingcheng <mingcheng@apache.org>
-# Last Modified: 2025-10-26 10:27:24
+# Last Modified: 2025-10-26 11:18:57
 ##
 
 # Load required packages
@@ -46,7 +46,7 @@ if (!require("svglite", quietly = TRUE)) {
 generate_treemap <- function(username, repos, dir_name, json_data) {
   # Setup font for visualization
   tryCatch(
-    font_add("SometypeMono", regular = "./assets/SometypeMono.ttf"),
+    font_add("FiraCode", regular = "./assets/FiraCode.ttf"),
     error = function(e) {
       warning("Failed to load custom font, using default: ", e$message)
     }
@@ -81,7 +81,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
     geom_treemap_text(
       aes(size = percentage),
       place = "centre",
-      family = "SometypeMono",
+      family = "FiraCode",
       min.size = 12
     ) +
     scale_size_continuous(range = c(12, 36)) +
@@ -92,7 +92,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
         username, total_repos, date_str
       )
     ) +
-    theme_minimal(base_family = "SometypeMono") +
+    theme_minimal(base_family = "FiraCode") +
     theme(
       plot.title = element_text(
         hjust = 0.5,

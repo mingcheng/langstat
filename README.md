@@ -26,8 +26,6 @@ They are the examples output for my [GitHub profile](https://github.com/mingchen
   - Treemaps
 - Automated monthly updates via GitHub Actions
 
-We use the [Sometype Mono font](https://monospacedfont.com/) for better representation in the charts, thanks for providing such a great free font!
-
 ## Usage
 
 ### Local Execution
@@ -72,8 +70,10 @@ You can link to these images in your GitHub README or personal website to showca
 | `GITHUB_USERNAME`           | Target username    | `mingcheng`(Yes, it's me!) |
 | `GITHUB_PER_PAGE`(Optional) | Repos per API call | `100`                      |
 
-Tips: You can also manually start the GitHub Actions process from the "Actions" tab in your repository, and then execute the analysis by clicking the "Run workflow" button.
+You can also manually start the GitHub Actions process from the "Actions" tab in your repository, and then execute the analysis by clicking the "Run workflow" button.
+
+Special thanks to [Fira Code](https://github.com/tonsky/FiraCode) for the beautiful font used in the visualizations.
 
 ## License
 
-MIT License, see [LICENSE.md](LICENSE.md) for details.
+This project is licensed under the MIT License, see [LICENSE.md](LICENSE.md) for details.
