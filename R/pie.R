@@ -12,22 +12,8 @@
 # Last Modified: 2025-10-26 11:19:07
 ##
 
-if (!require("showtext", quietly = TRUE)) {
-  install.packages("showtext")
-  library(showtext)
-}
-
 generate_pie_chart <- function(username, repos, dir_name, json_data) {
-  # Setup font for visualization
-  tryCatch(
-    font_add("FiraCode", regular = "../assets/FiraCode.ttf"),
-    error = function(e) {
-      warning("Failed to load custom font, using default: ", e$message)
-    }
-  )
-
-  # Enable showtext before opening graphics device
-  showtext_auto()
+  font_family <- setup_visualization_font()
 
   # Define function to generate chart
   generate_chart <- function(username, repos, colors, total_repos, date_str) {
@@ -35,7 +21,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
       bg = "white",
       mai = c(0.5, 0.5, 0.8, 0.5),
       lwd = 1,
-      family = "FiraCode"
+      family = font_family
     )
 
     pie(
@@ -58,6 +44,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
   colors <- rainbow(nrow(repos))
   total_repos <- nrow(json_data)
   date_str <- format(Sys.Date(), "%Y-%m-%d")
+  today <- format(Sys.Date(), "%Y%m%d")
 
   # Define chart files
   chart_files <- list(

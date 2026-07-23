@@ -38,6 +38,12 @@ export GITHUB_USERNAME="your_username"
 Rscript R/main.R
 ```
 
+### Tests
+
+```bash
+Rscript tests/run_tests.R
+```
+
 ### GitHub Actions
 
 The workflow runs automatically on the 1st of each month, or can be triggered manually via workflow dispatch. Results are committed to the `data` branch with the following structure:
@@ -61,7 +67,11 @@ You can link to these images in your GitHub README or personal website to showca
 ## Requirements
 
 - R >= 4 (tested on 4.5.1)
-- R packages: `httr`, `jsonlite`, `dplyr`, `magrittr`, `showtext`, `ggplot2`, `treemapify`, `svglite`
+- R packages: `httr`, `jsonlite`, `dplyr`, `showtext`, `sysfonts`, `ggplot2`, `treemapify`, `svglite`
+
+```r
+install.packages(c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite"))
+```
 
 ## Configuration
 

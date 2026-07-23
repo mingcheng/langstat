@@ -12,22 +12,6 @@
 # Last Modified: 2025-10-25 17:08:48
 ##
 
-# Load required packages
-if (!require("dplyr", quietly = TRUE)) {
-  install.packages("dplyr")
-  library(dplyr)
-}
-
-if (!require("magrittr", quietly = TRUE)) {
-  install.packages("magrittr")
-  library(magrittr)
-}
-
-if (!require("magrittr", quietly = TRUE)) {
-  install.packages("magrittr")
-  library(magrittr)
-}
-
 #' Process and Analyze Repository Data
 #'
 #' Calculate weighted language distribution scores based on repository
@@ -44,8 +28,8 @@ plot_repos <- function(repos_data) {
   cat("\n")
 
   # Calculate weighted scores and aggregate by language
-  repos_df <- repos_data %>%
-    mutate(
+  repos_df <- repos_data |>
+    dplyr::mutate(
       # Calculate update recency weight (most important factor)
       days_since_update = as.numeric(Sys.Date() - as.Date(updated_at)),
       # Exponential decay: 1 year decay constant
@@ -56,27 +40,27 @@ plot_repos <- function(repos_data) {
       # Weighted score: priority = update time > repo count > stars > forks
       # Note: repo count is calculated after grouping
       weighted_score = (star_score * 0.2 + fork_score * 0.1 + 1.5) * (date_weight^1.5)
-    ) %>%
+    ) |>
     # Group by language and aggregate
-    group_by(language) %>%
-    summarise(
+    dplyr::group_by(language) |>
+    dplyr::summarise(
       total_score = sum(weighted_score, na.rm = TRUE),
-      repo_count = n(),
+      repo_count = dplyr::n(),
       total_stars = sum(stargazers_count, na.rm = TRUE),
       total_forks = sum(forks_count, na.rm = TRUE),
       avg_days_since_update = mean(days_since_update, na.rm = TRUE),
       avg_date_weight = mean(date_weight, na.rm = TRUE),
       .groups = "drop"
-    ) %>%
+    ) |>
     # Filter out NA languages
-    filter(!is.na(language)) %>%
+    dplyr::filter(!is.na(language)) |>
     # Add repository count weight (second most important factor)
-    mutate(
+    dplyr::mutate(
       repo_count_score = log1p(repo_count) * 3.5,
       # Final score = base score (with time weight) + repo count bonus
       final_score = total_score + repo_count_score
-    ) %>%
-    arrange(desc(final_score))
+    ) |>
+    dplyr::arrange(dplyr::desc(final_score))
 
   # Print statistical results
   message("Language statistics:")
@@ -84,8 +68,8 @@ plot_repos <- function(repos_data) {
   cat("\n")
 
   # Calculate percentages and create labels
-  repos_df <- repos_df %>%
-    mutate(
+  repos_df <- repos_df |>
+    dplyr::mutate(
       percentage = round(final_score / sum(final_score) * 100, 1),
       label = paste0(language, " (", percentage, "%)")
     )

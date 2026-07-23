@@ -14,23 +14,31 @@
 # Last Modified: 2025-10-25 16:18:16
 ##
 
-# Load required packages
-if (!require("jsonlite", quietly = TRUE)) {
-  install.packages("jsonlite")
-  library(jsonlite)
+required_packages <- c(
+  "dplyr", "ggplot2", "httr", "jsonlite", "showtext", "svglite", "sysfonts",
+  "treemapify"
+)
+missing_packages <- required_packages[
+  !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
+if (length(missing_packages) > 0) {
+  stop(
+    "Missing required packages: ", paste(missing_packages, collapse = ", "),
+    ". Install them with install.packages()."
+  )
 }
 
+source_module <- function(path) {
+  tryCatch(
+    suppressMessages(source(path)),
+    error = function(error) stop("Failed to source ", path, ": ", error$message)
+  )
+}
 
-# Source helper functions
-tryCatch(
-  suppressMessages(source("R/fetch.R")),
-  error = function(e) stop("Failed to source R/fetch.R: ", e$message)
-)
-
-tryCatch(
-  suppressMessages(source("R/plot.R")),
-  error = function(e) stop("Failed to source R/plot.R: ", e$message)
-)
+invisible(lapply(
+  c("R/helpers.R", "R/fetch.R", "R/plot.R", "R/pie.R", "R/treemap.R"),
+  source_module
+))
 
 # Get GitHub username from environment or use default
 username <- Sys.getenv("GITHUB_USERNAME", unset = "mingcheng")
@@ -50,12 +58,12 @@ plotted_file_name <- file.path(dir_name, paste0("plotted_", today, ".csv"))
 
 # Fetch or load cached repository data
 if (file.exists(raw_file_name)) {
-  json_data <- fromJSON(raw_file_name)
+  json_data <- jsonlite::fromJSON(raw_file_name)
   message("Loaded cached data from ", raw_file_name)
 } else {
   # Check for HTTP proxy settings
   proxy <- Sys.getenv("HTTP_PROXY", unset = "")
-  if (is.null(proxy) || proxy == "") {
+  if (!nzchar(proxy)) {
     proxy <- NULL
     message("No proxy configured.")
   } else {
@@ -68,7 +76,7 @@ if (file.exists(raw_file_name)) {
   }
   message("Fetched ", length(json_data), " repositories")
 
-  write_json(json_data, raw_file_name, pretty = TRUE, auto_unbox = TRUE)
+  jsonlite::write_json(json_data, raw_file_name, pretty = TRUE, auto_unbox = TRUE)
   message("Raw data saved to ", raw_file_name)
 }
 
@@ -83,25 +91,8 @@ message("Successfully processed repository data")
 write.csv(repos, plotted_file_name, row.names = FALSE)
 message("Statistical data saved to ", plotted_file_name)
 
-# Generate visualizations
-
-# Generate pie chart
-tryCatch(
-  suppressMessages(source("R/pie.R")),
-  error = function(e) stop("Failed to source R/pie.R: ", e$message)
-)
-
 generate_pie_chart(username, repos, dir_name, json_data)
 
-# Generate treemap
-tryCatch(
-  suppressMessages(source("R/treemap.R")),
-  error = function(e) stop("Failed to source R/treemap.R: ", e$message)
-)
-
 generate_treemap(username, repos, dir_name, json_data)
-
-
-
 
 message("Analysis complete!")

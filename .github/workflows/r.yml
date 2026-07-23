@@ -33,6 +33,7 @@ on:
       - main
     paths:
       - "R/**"
+      - "tests/**"
       - ".github/workflows/r.yml"
 
 jobs:
@@ -78,13 +79,16 @@ jobs:
       - name: Install R dependencies
         run: |
           Rscript -e '
-          packages <- c("httr", "jsonlite", "dplyr", "magrittr", "showtext", "ggplot2", "treemapify", "svglite")
+          packages <- c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite")
           new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
           if(length(new_packages)) {
-            install.packages(new_packages, repos="https://cloud.r-project.org", dependencies=TRUE)
+            install.packages(new_packages, repos="https://cloud.r-project.org", dependencies=NA)
           }
           '
         shell: bash
+
+      - name: Run tests
+        run: Rscript tests/run_tests.R
 
       - name: Run analysis
         env:
