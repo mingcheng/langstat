@@ -44,7 +44,7 @@ run_test("repository statistics are aggregated and ranked", {
 
 run_test("bundled custom font is loaded", {
   font_family <- suppressWarnings(setup_visualization_font())
-  stopifnot(identical(font_family, "FiraCode"))
+  stopifnot(identical(font_family, "DankMono"))
 })
 
 run_test("missing custom font falls back to sans", {

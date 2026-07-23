@@ -67,11 +67,99 @@ You can link to these images in your GitHub README or personal website to showca
 ## Requirements
 
 - R >= 4 (tested on 4.5.1)
-- R packages: `httr`, `jsonlite`, `dplyr`, `showtext`, `sysfonts`, `ggplot2`, `treemapify`, `svglite`
+
+## Installation
+
+### System dependencies (Ubuntu/Debian)
+
+Some R packages need system libraries for HTTP, font rendering and image I/O:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  libcurl4-openssl-dev \
+  libssl-dev \
+  libxml2-dev \
+  libfontconfig1-dev \
+  libharfbuzz-dev \
+  libfribidi-dev \
+  libfreetype6-dev \
+  libpng-dev \
+  libtiff5-dev \
+  libjpeg-dev
+```
+
+On Windows the binary packages on CRAN include the required libraries.
+
+### System dependencies (macOS)
+
+On macOS, first install the Xcode Command Line Tools:
+
+```bash
+xcode-select --install
+```
+
+Then install the required libraries via Homebrew:
+
+```bash
+brew install \
+  curl-openssl \
+  openssl \
+  libxml2 \
+  fontconfig \
+  harfbuzz \
+  fribidi \
+  freetype \
+  libpng \
+  libtiff \
+  jpeg
+```
+
+If you are using the CRAN binary R package, many of these dependencies are already bundled and only the Xcode Command Line Tools may be necessary.
+
+### R packages
+
+Install the required R packages from CRAN:
 
 ```r
-install.packages(c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite"))
+packages <- c(
+  "httr", "jsonlite", "dplyr", "showtext", "sysfonts",
+  "ggplot2", "treemapify", "svglite"
+)
+new_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
+if (length(new_packages)) {
+  install.packages(new_packages, repos = "https://cloud.r-project.org", dependencies = NA)
+}
 ```
+
+Or install them directly:
+
+```r
+install.packages(
+  c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite"),
+  dependencies = NA
+)
+```
+
+#### For users in mainland China
+
+If downloading from the default CRAN mirror is slow or fails, use a domestic CRAN mirror, for example the TUNA mirror:
+
+```r
+install.packages(
+  c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite"),
+  repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN/",
+  dependencies = NA
+)
+```
+
+Other commonly used domestic CRAN mirrors include:
+
+- TUNA (Tsinghua): `https://mirrors.tuna.tsinghua.edu.cn/CRAN/`
+- USTC: `https://mirrors.ustc.edu.cn/CRAN/`
+- Aliyun: `https://mirrors.aliyun.com/CRAN/`
+
+The visualization fonts are bundled in the `assets/` directory, so no extra font installation is required.
 
 ## Configuration
 
@@ -82,7 +170,7 @@ install.packages(c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2
 
 You can also manually start the GitHub Actions process from the "Actions" tab in your repository, and then execute the analysis by clicking the "Run workflow" button.
 
-Special thanks to [Fira Code](https://github.com/tonsky/FiraCode) for the beautiful font used in the visualizations.
+The bundled visualization font is [Dank Mono](https://dank.sh).
 
 ## License
 
