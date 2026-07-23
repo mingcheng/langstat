@@ -12,27 +12,6 @@
 # Last Modified: 2025-10-26 11:18:57
 ##
 
-# Load required packages
-if (!require("ggplot2", quietly = TRUE)) {
-  install.packages("ggplot2")
-  library(ggplot2)
-}
-
-if (!require("treemapify", quietly = TRUE)) {
-  install.packages("treemapify")
-  library(treemapify)
-}
-
-if (!require("showtext", quietly = TRUE)) {
-  install.packages("showtext")
-  library(showtext)
-}
-
-if (!require("svglite", quietly = TRUE)) {
-  install.packages("svglite")
-  library(svglite)
-}
-
 #' Generate Treemap Visualization
 #'
 #' Creates a treemap visualization of repository language distribution
@@ -44,16 +23,7 @@ if (!require("svglite", quietly = TRUE)) {
 #' @param json_data Raw repository data
 #' @export
 generate_treemap <- function(username, repos, dir_name, json_data) {
-  # Setup font for visualization
-  tryCatch(
-    font_add("FiraCode", regular = "./assets/FiraCode.ttf"),
-    error = function(e) {
-      warning("Failed to load custom font, using default: ", e$message)
-    }
-  )
-
-  # Enable showtext
-  showtext_auto()
+  font_family <- setup_visualization_font()
 
   # Prepare data for treemap
   total_repos <- nrow(json_data)
@@ -71,34 +41,34 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
   message("Displaying ", nrow(repos_filtered), " languages in treemap (filtered >= 1%)")
 
   # Create the treemap plot
-  p <- ggplot(repos_filtered, aes(
+  p <- ggplot2::ggplot(repos_filtered, ggplot2::aes(
     area = final_score,
     fill = language,
     # label = paste0(language, "\n", percentage, "%\n(", repo_count, " repos)")
     label = paste0(language, "\n", percentage, "%")
   )) +
-    geom_treemap(colour = "white", size = 2) +
-    geom_treemap_text(
-      aes(size = percentage),
+    treemapify::geom_treemap(colour = "white", size = 2) +
+    treemapify::geom_treemap_text(
+      ggplot2::aes(size = percentage),
       place = "centre",
-      family = "FiraCode",
+      family = font_family,
       min.size = 12
     ) +
-    scale_size_continuous(range = c(12, 36)) +
-    labs(
+    ggplot2::scale_size_continuous(range = c(12, 36)) +
+    ggplot2::labs(
       title = "Repository Distribution by Language",
       subtitle = sprintf(
         "GitHub User: %s | Total Repositories: %d | Updated on %s",
         username, total_repos, date_str
       )
     ) +
-    theme_minimal(base_family = "FiraCode") +
-    theme(
-      plot.title = element_text(
+    ggplot2::theme_minimal(base_family = font_family) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
         hjust = 0.5,
         size = 24
       ),
-      plot.subtitle = element_text(
+      plot.subtitle = ggplot2::element_text(
         hjust = 0.5,
         size = 10,
         colour = "#777777"
@@ -120,7 +90,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
 
   # Save SVG versions
   for (svg_file in treemap_files$svg) {
-    ggsave(
+    ggplot2::ggsave(
       svg_file,
       plot = p,
       width = 10,
@@ -132,7 +102,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
 
   # Save PNG versions
   for (png_file in treemap_files$png) {
-    ggsave(
+    ggplot2::ggsave(
       png_file,
       plot = p,
       width = 10,

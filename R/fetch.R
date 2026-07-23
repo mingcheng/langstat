@@ -12,17 +12,6 @@
 # Last Modified: 2025-10-25 17:25:34
 ##
 
-# Load required packages
-if (!requireNamespace("httr", quietly = TRUE)) {
-  install.packages("httr")
-}
-library(httr)
-
-if (!requireNamespace("jsonlite", quietly = TRUE)) {
-  install.packages("jsonlite")
-}
-library(jsonlite)
-
 #' Fetch GitHub Repository Data
 #'
 #' Fetches repository information for a GitHub user via the GitHub API.
@@ -65,20 +54,20 @@ fetch_json <- function(username, proxy = NULL) {
       }
 
       # Make HTTP request
-      response <- GET(
+      response <- httr::GET(
         url,
-        add_headers(.headers = headers),
-        if (!is.null(proxy)) use_proxy(proxy)
+        httr::add_headers(.headers = headers),
+        if (!is.null(proxy)) httr::use_proxy(proxy)
       )
 
       # Check response status
-      if (status_code(response) != 200) {
-        stop("HTTP request failed with status code: ", status_code(response))
+      if (httr::status_code(response) != 200) {
+        stop("HTTP request failed with status code: ", httr::status_code(response))
       }
 
       # Parse JSON response
-      content_text <- content(response, "text", encoding = "UTF-8")
-      return(fromJSON(content_text))
+      content_text <- httr::content(response, "text", encoding = "UTF-8")
+      return(jsonlite::fromJSON(content_text))
     },
     error = function(e) {
       message("Error fetching JSON data: ", e$message)

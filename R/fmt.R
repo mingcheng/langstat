@@ -12,9 +12,8 @@
 # Last Modified: 2025-10-25 23:57:46
 ##
 
-if (!require("styler", quietly = TRUE)) {
-  install.packages("styler")
-  library(styler)
+if (!requireNamespace("styler", quietly = TRUE)) {
+  stop("Missing required package: styler. Install it with install.packages().")
 }
 
 #' Format R Code Files
