@@ -18,13 +18,67 @@ They are the examples output for my [GitHub profile](https://github.com/mingchen
 
 - Fetches repository data via GitHub API
 - Calculates weighted language distribution based on:
-  - Repository update recency
-  - Stars and forks count
-  - Repository count per language
+  - Push recency with a one-year half-life
+  - Bounded popularity signals (stars and fork counts)
+  - Archived status and repeated use across original repositories
+- Excludes forked, disabled and empty repositories
 - Generates multiple visualizations, both in SVG and PNG formats:
   - Pie Charts
   - Treemaps
 - Automated monthly updates via GitHub Actions
+- Dank Mono typography with a shared soft-color palette for both chart types
+
+### Scoring model
+
+Only original, enabled, non-empty repositories with a known primary language
+are scored. Forked repositories are **completely excluded**, regardless of their
+popularity or last push. Here, "empty" means GitHub reports `size == 0`.
+
+| Factor            | Range / rule                                | Purpose                                                               |
+| ----------------- | ------------------------------------------- | --------------------------------------------------------------------- |
+| Recency           | `2 ^ (-days_since_push / 365)`, from 0 to 1 | One year without a push halves the contribution; two years leaves 25% |
+| Archived status   | 1 for active, 0.5 for archived              | Retain past work with a reduced contribution                          |
+| Base contribution | 0.70                                        | Usage matters more than popularity                                    |
+| Stars             | `0.20 * min(log1p(stars) / log1p(200), 1)`  | Diminishing returns, capped at 200 stars                              |
+| Fork count        | `0.10 * min(log1p(forks) / log1p(50), 1)`   | Smaller popularity signal, capped at 50 forks                         |
+
+```text
+repository_score = recency * archived_weight * (0.70 + star_contribution + fork_contribution)
+language_score   = sum(repository_score)
+percentage       = language_score / sum(all_language_scores) * 100
+```
+
+Every repository contributes between 0 and 1. Popularity can add at most 0.30
+before the activity discounts, so a popular project cannot outweigh two equally
+recent, non-archived projects solely through its stars and forks. Language totals
+can exceed 1 because they sum multiple repositories; only each repository's
+contribution is bounded. Repository count is already reflected in that sum, so
+there is no additional count bonus.
+
+Future pushes are treated as today. Missing or invalid `pushed_at` falls back
+to `updated_at` with a warning; if neither date is usable, the repository receives
+zero weight with a warning. Missing eligibility metadata or invalid numeric
+counts cause an explicit error rather than silently treating an unknown repo as
+original. Refresh older cached data if required fields are missing. Analysis
+stops if no positive language scores remain.
+
+CSV output includes `base_score`, `star_score`, `fork_score`,
+`archived_repo_count` and `effective_repo_count` (the sum of recency times archived
+weight). `final_score` equals `total_score` and the sum of the three score
+components; the old `repo_count_score` bonus column is removed.
+`avg_days_since_update` retains its name for compatibility but now measures the
+selected activity date. Chart subtitles show scored / fetched repository counts.
+
+Both charts combine languages below 1% into a neutral-colored **Other** block,
+using unrounded scores for the cutoff. The treemap keeps at most 12 individual
+languages and groups any remaining languages into Other too. Their scores are
+preserved, not dropped or redistributed. Zero-score languages have no visible
+area, and CSV output always retains the full language breakdown.
+
+These coefficients are transparent heuristics, not a measure of personal
+proficiency. A repository's last push may be from another contributor, and its
+primary language does not describe every technology it uses. Percentages are
+relative: if all stacks age equally, their shares remain unchanged.
 
 ## Usage
 
@@ -163,10 +217,11 @@ The visualization fonts are bundled in the `assets/` directory, so no extra font
 
 ## Configuration
 
-| Environment Variable        | Description        | Default                    |
-| --------------------------- | ------------------ | -------------------------- |
-| `GITHUB_USERNAME`           | Target username    | `mingcheng`(Yes, it's me!) |
-| `GITHUB_PER_PAGE`(Optional) | Repos per API call | `100`                      |
+| Environment Variable        | Description                     | Default                    |
+| --------------------------- | ------------------------------- | -------------------------- |
+| `GITHUB_USERNAME`           | Target username                 | `mingcheng`(Yes, it's me!) |
+| `GITHUB_PER_PAGE`(Optional) | Repos per API call              | `100`                      |
+| `GITHUB_TOKEN` (Optional)   | GitHub API authentication token | Unauthenticated requests   |
 
 You can also manually start the GitHub Actions process from the "Actions" tab in your repository, and then execute the analysis by clicking the "Run workflow" button.
 

@@ -40,6 +40,8 @@ invisible(lapply(
   source_module
 ))
 
+load_local_env()
+
 # Get GitHub username from environment or use default
 username <- Sys.getenv("GITHUB_USERNAME", unset = "mingcheng")
 if (username == "") {
@@ -67,14 +69,14 @@ if (file.exists(raw_file_name)) {
     proxy <- NULL
     message("No proxy configured.")
   } else {
-    message("Using proxy: ", proxy)
+    message("Using configured HTTP proxy.")
   }
 
   json_data <- fetch_json(username, proxy)
   if (is.null(json_data)) {
     stop("Failed to fetch data from GitHub API")
   }
-  message("Fetched ", length(json_data), " repositories")
+  message("Fetched ", nrow(json_data), " repositories")
 
   jsonlite::write_json(json_data, raw_file_name, pretty = TRUE, auto_unbox = TRUE)
   message("Raw data saved to ", raw_file_name)

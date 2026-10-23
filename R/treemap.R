@@ -24,22 +24,16 @@
 #' @export
 generate_treemap <- function(username, repos, dir_name, json_data) {
   font_family <- setup_visualization_font()
-  style <- visualization_style(repos$language)
+  style <- visualization_style(c(repos$language, "Other"))
 
   # Prepare data for treemap
   total_repos <- nrow(json_data)
   date_str <- format(Sys.Date(), "%Y-%m-%d")
   today <- format(Sys.Date(), "%Y%m%d")
 
-  # Filter data: only keep languages with percentage >= 1%
-  repos_filtered <- repos[repos$percentage >= 1, ]
+  repos_filtered <- prepare_chart_data(repos, max_languages = 12)
 
-  # If too many languages remain, keep only top 12
-  if (nrow(repos_filtered) > 12) {
-    repos_filtered <- head(repos_filtered, 12)
-  }
-
-  message("Displaying ", nrow(repos_filtered), " languages in treemap (filtered >= 1%)")
+  message("Displaying ", nrow(repos_filtered), " treemap blocks (minor languages grouped as Other)")
 
   # Create the treemap plot
   p <- ggplot2::ggplot(repos_filtered, ggplot2::aes(
@@ -60,9 +54,14 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
     ggplot2::labs(
       title = "Activity-weighted Language Mix",
       subtitle = sprintf(
-        "GitHub User: %s | Total Repositories: %d | Updated on %s",
-        username, total_repos, date_str
-      )
+        "GitHub: %s | Scored Repos: %d/%d | Updated on %s",
+        username, sum(repos$repo_count), total_repos, date_str
+      ),
+      caption = if ("Other" %in% repos_filtered$language) {
+        repos_filtered$label[repos_filtered$language == "Other"]
+      } else {
+        NULL
+      }
     ) +
     ggplot2::theme_minimal(base_family = font_family) +
     ggplot2::theme(
@@ -76,6 +75,11 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
         hjust = 0.5,
         size = 10,
         colour = style$muted
+      ),
+      plot.caption = ggplot2::element_text(
+        size = 9,
+        colour = style$muted,
+        margin = ggplot2::margin(t = 10)
       ),
       panel.grid = ggplot2::element_blank(),
       plot.background = ggplot2::element_rect(fill = style$background, colour = NA),

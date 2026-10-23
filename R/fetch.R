@@ -1,5 +1,5 @@
 #!#
-# Copyright (c) 2025 Hangzhou Guanwaii Technology Co., Ltd.
+# Copyright (c) 2026 Ming Lyu, aka mingcheng
 #
 # This source code is licensed under the MIT License,
 # which is located in the LICENSE file in the source tree's root directory.
@@ -9,7 +9,7 @@
 # File Created: 2025-10-25 14:58:15
 #
 # Modified By: mingcheng <mingcheng@apache.org>
-# Last Modified: 2025-10-25 17:25:34
+# Last Modified: 2026-10-23 21:45:20
 ##
 
 #' Fetch GitHub Repository Data
