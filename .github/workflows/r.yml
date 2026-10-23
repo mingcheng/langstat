@@ -94,6 +94,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_USERNAME: ${{ inputs.github_username || github.repository_owner }}
+          TREEMAP_MIN_PERCENTAGE: ${{ vars.TREEMAP_MIN_PERCENTAGE || '2' }}
+          TREEMAP_MIN_FONT_SIZE: ${{ vars.TREEMAP_MIN_FONT_SIZE || '16' }}
+          TREEMAP_MAX_FONT_SIZE: ${{ vars.TREEMAP_MAX_FONT_SIZE || '32' }}
         run: |
           echo "Analyzing GitHub user: $GITHUB_USERNAME"
           Rscript R/main.R 2>&1 | tee analysis.log

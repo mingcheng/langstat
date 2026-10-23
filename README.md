@@ -217,11 +217,20 @@ The visualization fonts are bundled in the `assets/` directory, so no extra font
 
 ## Configuration
 
-| Environment Variable        | Description                     | Default                    |
-| --------------------------- | ------------------------------- | -------------------------- |
-| `GITHUB_USERNAME`           | Target username                 | `mingcheng`(Yes, it's me!) |
-| `GITHUB_PER_PAGE`(Optional) | Repos per API call              | `100`                      |
-| `GITHUB_TOKEN` (Optional)   | GitHub API authentication token | Unauthenticated requests   |
+| Environment Variable                | Description                                                           | Default                    |
+| ----------------------------------- | --------------------------------------------------------------------- | -------------------------- |
+| `GITHUB_USERNAME`                   | Target username                                                       | `mingcheng`(Yes, it's me!) |
+| `GITHUB_PER_PAGE`(Optional)         | Repos per API call                                                    | `100`                      |
+| `GITHUB_TOKEN` (Optional)           | GitHub API authentication token                                       | Unauthenticated requests   |
+| `TREEMAP_MIN_PERCENTAGE` (Optional) | Minimum language share shown in the treemap (0-100, decimals allowed) | `2`                        |
+| `TREEMAP_MIN_FONT_SIZE` (Optional)  | Minimum treemap label size in points (positive, decimals allowed)     | `16`                       |
+| `TREEMAP_MAX_FONT_SIZE` (Optional)  | Maximum treemap label size in points (must be at least the minimum)   | `32`                       |
+
+For example, show only languages with at least 3.5% and use 18-34 pt labels:
+
+```bash
+TREEMAP_MIN_PERCENTAGE=3.5 TREEMAP_MIN_FONT_SIZE=18 TREEMAP_MAX_FONT_SIZE=34 Rscript R/main.R
+```
 
 You can also manually start the GitHub Actions process from the "Actions" tab in your repository, and then execute the analysis by clicking the "Run workflow" button.
 

@@ -91,25 +91,34 @@ visualization_style <- function(languages) {
   )
 }
 
-prepare_chart_data <- function(repos, max_languages = Inf) {
+prepare_chart_data <- function(repos, max_languages = Inf, min_percentage = 1,
+                               group_other = TRUE) {
   total_score <- sum(repos$final_score)
   if (any(!is.finite(repos$final_score)) || any(repos$final_score < 0) ||
       !is.finite(total_score) || total_score <= 0) {
     stop("Charts require non-negative scores with a positive finite total.")
   }
-  if (length(max_languages) != 1L || is.na(max_languages) ||
+  if (!is.numeric(max_languages) || length(max_languages) != 1L || is.na(max_languages) ||
       max_languages < 1 || max_languages != floor(max_languages)) {
     stop("max_languages must be a positive integer or Inf.")
   }
-  repos |>
-    dplyr::arrange(dplyr::desc(final_score)) |>
-    dplyr::mutate(
-      language = dplyr::if_else(
-        final_score / .env$total_score >= 0.01 &
-          dplyr::row_number() <= .env$max_languages,
-        as.character(language), "Other"
-      )
-    ) |>
+  if (!is.numeric(min_percentage) || length(min_percentage) != 1L ||
+      !is.finite(min_percentage) || min_percentage < 0 || min_percentage > 100) {
+    stop("min_percentage must be a finite number between 0 and 100.")
+  }
+  chart_data <- repos |>
+    dplyr::arrange(dplyr::desc(final_score))
+  visible <- chart_data$final_score / total_score >= min_percentage / 100 &
+    seq_len(nrow(chart_data)) <= max_languages & chart_data$final_score > 0
+  if (group_other) {
+    chart_data$language <- ifelse(visible, as.character(chart_data$language), "Other")
+  } else {
+    chart_data <- chart_data[visible, , drop = FALSE]
+  }
+  if (nrow(chart_data) == 0) {
+    stop("No languages meet the ", min_percentage, "% chart display threshold.")
+  }
+  chart_data |>
     dplyr::group_by(language) |>
     dplyr::summarise(
       final_score = sum(final_score),
@@ -119,7 +128,8 @@ prepare_chart_data <- function(repos, max_languages = Inf) {
     dplyr::filter(final_score > 0) |>
     dplyr::arrange(language == "Other", dplyr::desc(final_score)) |>
     dplyr::mutate(
-      percentage = round(final_score / .env$total_score * 100, 1),
+      exact_percentage = final_score / .env$total_score * 100,
+      percentage = round(exact_percentage, 1),
       label = paste0(language, " (", percentage, "%)")
     )
 }

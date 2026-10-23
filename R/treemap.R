@@ -21,49 +21,86 @@
 #' @param repos Data frame with language statistics
 #' @param dir_name Output directory path
 #' @param json_data Raw repository data
+#' @return The generated ggplot object, invisibly
 #' @export
 generate_treemap <- function(username, repos, dir_name, json_data) {
+  min_percentage <- suppressWarnings(as.numeric(
+    Sys.getenv("TREEMAP_MIN_PERCENTAGE", unset = "2")
+  ))
+  if (!is.finite(min_percentage) || min_percentage < 0 || min_percentage > 100) {
+    stop("TREEMAP_MIN_PERCENTAGE must be a finite number between 0 and 100.")
+  }
+  min_font_size <- suppressWarnings(as.numeric(
+    Sys.getenv("TREEMAP_MIN_FONT_SIZE", unset = "16")
+  ))
+  max_font_size <- suppressWarnings(as.numeric(
+    Sys.getenv("TREEMAP_MAX_FONT_SIZE", unset = "32")
+  ))
+  if (!is.finite(min_font_size) || min_font_size <= 0 ||
+      !is.finite(max_font_size) || max_font_size <= 0) {
+    stop("TREEMAP_MIN_FONT_SIZE and TREEMAP_MAX_FONT_SIZE must be positive finite numbers (pt).")
+  }
+  if (min_font_size > max_font_size) {
+    stop("TREEMAP_MIN_FONT_SIZE must not exceed TREEMAP_MAX_FONT_SIZE.")
+  }
+  repos_filtered <- prepare_chart_data(
+    repos, max_languages = 12, min_percentage = min_percentage, group_other = FALSE
+  )
+  share_range <- range(repos_filtered$exact_percentage)
+  if (share_range[1] == share_range[2]) {
+    repos_filtered$font_size <- min_font_size + (max_font_size - min_font_size) / 2
+  } else {
+    relative_share <- (repos_filtered$exact_percentage - share_range[1]) / diff(share_range)
+    repos_filtered$font_size <- pmin(max_font_size, pmax(
+      min_font_size, min_font_size + relative_share * (max_font_size - min_font_size)
+    ))
+  }
+  layout <- treemapify::treemapify(repos_filtered, area = "final_score")
+
   font_family <- setup_visualization_font()
-  style <- visualization_style(c(repos$language, "Other"))
+  style <- visualization_style(repos$language)
 
   # Prepare data for treemap
   total_repos <- nrow(json_data)
   date_str <- format(Sys.Date(), "%Y-%m-%d")
   today <- format(Sys.Date(), "%Y%m%d")
 
-  repos_filtered <- prepare_chart_data(repos, max_languages = 12)
-
-  message("Displaying ", nrow(repos_filtered), " treemap blocks (minor languages grouped as Other)")
+  message(
+    "Displaying ", nrow(repos_filtered), " treemap blocks (threshold: ",
+    min_percentage, "%, at most 12 languages)"
+  )
 
   # Create the treemap plot
-  p <- ggplot2::ggplot(repos_filtered, ggplot2::aes(
-    area = final_score,
+  p <- ggplot2::ggplot(layout, ggplot2::aes(
     fill = language,
     label = paste0(language, "\n", percentage, "%")
   )) +
-    treemapify::geom_treemap(colour = style$background, size = 2) +
-    treemapify::geom_treemap_text(
-      ggplot2::aes(size = percentage),
-      place = "centre",
-      family = font_family,
-      colour = style$foreground,
-      min.size = 12
+    ggplot2::geom_rect(
+      ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      colour = style$background,
+      linewidth = 0.7
     ) +
-    ggplot2::scale_size_continuous(range = c(12, 36)) +
+    ggplot2::geom_text(
+      ggplot2::aes(
+        x = (xmin + xmax) / 2,
+        y = (ymin + ymax) / 2,
+        size = font_size / ggplot2::.pt
+      ),
+      family = font_family,
+      colour = style$foreground
+    ) +
+    ggplot2::scale_size_identity() +
     ggplot2::scale_fill_manual(values = style$colors) +
+    ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), expand = FALSE) +
     ggplot2::labs(
       title = "Activity-weighted Language Mix",
       subtitle = sprintf(
         "GitHub: %s | Scored Repos: %d/%d | Updated on %s",
         username, sum(repos$repo_count), total_repos, date_str
       ),
-      caption = if ("Other" %in% repos_filtered$language) {
-        repos_filtered$label[repos_filtered$language == "Other"]
-      } else {
-        NULL
-      }
+      caption = sprintf("Showing languages >= %g%% (up to 12); shares use all scored languages", min_percentage)
     ) +
-    ggplot2::theme_minimal(base_family = font_family) +
+    ggplot2::theme_void(base_family = font_family) +
     ggplot2::theme(
       plot.title = ggplot2::element_text(
         hjust = 0.5,
@@ -123,4 +160,6 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
     )
     message("Treemap PNG saved to ", png_file)
   }
+
+  invisible(p)
 }

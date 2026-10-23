@@ -52,6 +52,27 @@ statistics <- function(data, reference_date = Sys.Date()) {
   result
 }
 
+with_treemap_settings <- function(value, code, min_font = NULL, max_font = NULL) {
+  settings <- list(
+    TREEMAP_MIN_PERCENTAGE = value,
+    TREEMAP_MIN_FONT_SIZE = min_font,
+    TREEMAP_MAX_FONT_SIZE = max_font
+  )
+  previous <- Sys.getenv(names(settings), unset = NA_character_)
+  on.exit({
+    Sys.unsetenv(names(settings))
+    if (any(!is.na(previous))) {
+      do.call(Sys.setenv, as.list(previous[!is.na(previous)]))
+    }
+  }, add = TRUE)
+  Sys.unsetenv(names(settings))
+  configured <- settings[!vapply(settings, is.null, logical(1))]
+  if (length(configured) > 0) {
+    do.call(Sys.setenv, configured)
+  }
+  force(code)
+}
+
 run_test("every score contribution has a one-year half-life", {
   reference_date <- as.Date("2026-10-23")
   data <- data.frame(
@@ -359,7 +380,7 @@ run_test("minor chart languages use an exact cutoff and preserve all contributio
   )
 })
 
-run_test("treemap language limit groups rather than discards remaining scores", {
+run_test("grouped chart language limit preserves remaining scores in Other", {
   data <- data.frame(
     language = paste0("Language", seq_len(13)),
     final_score = seq_len(13),
@@ -374,6 +395,170 @@ run_test("treemap language limit groups rather than discards remaining scores", 
     sum(chart$repo_count) == sum(data$repo_count)
   )
 })
+
+run_test("treemap cutoff uses unrounded shares and does not create Other", {
+  data <- data.frame(
+    language = c("Primary", "ExactlyTwo", "RoundedUp", "Tiny"),
+    final_score = c(96, 2, 1.96, 0.04),
+    total_score = c(96, 2, 1.96, 0.04),
+    repo_count = 1L
+  )
+  chart <- prepare_chart_data(data, min_percentage = 2, group_other = FALSE)
+  stopifnot(
+    identical(chart$language, c("Primary", "ExactlyTwo")),
+    isTRUE(all.equal(chart$exact_percentage, c(96, 2))),
+    isTRUE(all.equal(chart$percentage, c(96, 2))),
+    !"Other" %in% chart$language
+  )
+  all_positive <- prepare_chart_data(data, min_percentage = 0, group_other = FALSE)
+  stopifnot(nrow(all_positive) == 4)
+
+  data$final_score <- c(1, 0, 0, 0)
+  chart <- prepare_chart_data(data, min_percentage = 100, group_other = FALSE)
+  stopifnot(nrow(chart) == 1, chart$percentage == 100)
+})
+
+run_test("filtered treemap still limits individual languages without aggregation", {
+  data <- data.frame(
+    language = paste0("Language", seq_len(17)),
+    final_score = 1,
+    repo_count = 1L
+  )
+  chart <- prepare_chart_data(
+    data, max_languages = 12, min_percentage = 2, group_other = FALSE
+  )
+  stopifnot(
+    nrow(chart) == 12,
+    !"Other" %in% chart$language,
+    all(abs(chart$exact_percentage - 100 / 17) < 1e-12)
+  )
+})
+
+run_test("treemap rejects invalid thresholds and reports an entirely hidden chart", {
+  repos <- statistics(fixture)
+  output_dir <- tempfile("langstat-invalid-threshold-")
+  for (value in c("", "invalid", "-1", "101", "Inf", "NaN", "2%")) {
+    error <- with_treemap_settings(value, tryCatch(
+      generate_treemap("test-user", repos, output_dir, fixture),
+      error = identity
+    ))
+    stopifnot(
+      inherits(error, "error"),
+      grepl("TREEMAP_MIN_PERCENTAGE", conditionMessage(error)),
+      !dir.exists(output_dir)
+    )
+  }
+  error <- with_treemap_settings("100", tryCatch(
+    generate_treemap("test-user", repos, output_dir, fixture),
+    error = identity
+  ))
+  stopifnot(inherits(error, "error"), grepl("No languages meet", conditionMessage(error)))
+})
+
+run_test("treemap rejects invalid font bounds before creating exports", {
+  repos <- statistics(fixture)
+  output_dir <- tempfile("langstat-invalid-font-")
+  for (value in c("", "invalid", "-1", "0", "Inf", "-Inf", "NaN", "NA", "16pt")) {
+    for (bound in c("min", "max")) {
+      error <- with_treemap_settings(NULL, tryCatch(
+        generate_treemap("test-user", repos, output_dir, fixture),
+        error = identity
+      ), min_font = if (bound == "min") value else NULL,
+      max_font = if (bound == "max") value else NULL)
+      stopifnot(
+        inherits(error, "error"),
+        grepl("positive finite numbers", conditionMessage(error)),
+        !dir.exists(output_dir)
+      )
+    }
+  }
+  error <- with_treemap_settings(NULL, tryCatch(
+    generate_treemap("test-user", repos, output_dir, fixture),
+    error = identity
+  ), min_font = "30", max_font = "16")
+  stopifnot(inherits(error, "error"), grepl("must not exceed", conditionMessage(error)))
+})
+
+run_test("treemap renders bounded linear fonts with default and overridden settings", local({
+  repos <- data.frame(
+    language = c("Large", "Medium", "ExactlyTwo", "RoundedUp", "Small"),
+    final_score = c(75, 20, 2, 1.99, 1.01),
+    total_score = c(75, 20, 2, 1.99, 1.01),
+    repo_count = 1L
+  )
+  output_dir <- tempfile("langstat-treemap-sizing-")
+  dir.create(output_dir)
+  on.exit(unlink(output_dir, recursive = TRUE), add = TRUE)
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  configurations <- list(
+    list(threshold = NULL, min = NULL, max = NULL, sizes = c(32, 16 + 16 * 18 / 73, 16)),
+    list(threshold = "2.5", min = NULL, max = NULL, sizes = c(32, 16)),
+    list(threshold = NULL, min = "12.5", max = "28.5", sizes = c(28.5, 12.5 + 16 * 18 / 73, 12.5)),
+    list(threshold = NULL, min = "18", max = NULL, sizes = c(32, 18 + 14 * 18 / 73, 18)),
+    list(threshold = NULL, min = NULL, max = "28", sizes = c(28, 16 + 12 * 18 / 73, 16)),
+    list(threshold = NULL, min = "20", max = "20", sizes = c(20, 20, 20))
+  )
+  for (config in configurations) {
+    plot <- with_treemap_settings(config$threshold, suppressMessages(
+      generate_treemap("test-user", repos, output_dir, repos)
+    ), min_font = config$min, max_font = config$max)
+    expected_languages <- if (is.null(config$threshold)) {
+      c("Large", "Medium", "ExactlyTwo")
+    } else {
+      c("Large", "Medium")
+    }
+    stopifnot(setequal(plot$data$language, expected_languages))
+    expected_sizes <- unname(stats::setNames(config$sizes, expected_languages)[plot$data$language])
+    stopifnot(isTRUE(all.equal(plot$data$font_size, expected_sizes)))
+
+    grid::grid.newpage()
+    table <- ggplot2::ggplotGrob(plot)
+    panel <- table$grobs[[which(table$layout$name == "panel")]]
+    text <- Filter(function(grob) inherits(grob, "text"), panel$children)
+    stopifnot(
+      length(text) == 1,
+      isTRUE(all.equal(unname(text[[1]]$gp$fontsize), expected_sizes)),
+      isTRUE(all.equal(
+        with(plot$data, (xmax - xmin) * (ymax - ymin)),
+        plot$data$final_score / sum(plot$data$final_score)
+      ))
+    )
+  }
+}))
+
+run_test("treemap font range handles equal shares single languages and extreme ratios", local({
+  output_dir <- tempfile("langstat-font-edge-cases-")
+  dir.create(output_dir)
+  on.exit(unlink(output_dir, recursive = TRUE), add = TRUE)
+  cases <- list(
+    list(scores = c(1, 1, 1), sizes = c(24, 24, 24)),
+    list(scores = 100, sizes = 24),
+    list(scores = c(98, 2), sizes = c(32, 16)),
+    list(scores = c(33.334, 33.333, 33.333), sizes = c(32, 16, 16))
+  )
+  for (case in cases) {
+    repos <- data.frame(
+      language = paste0("Language", seq_along(case$scores)),
+      final_score = case$scores,
+      repo_count = 1L
+    )
+    plot <- with_treemap_settings(NULL, suppressMessages(
+      generate_treemap("test-user", repos, output_dir, repos)
+    ))
+    expected <- stats::setNames(case$sizes, repos$language)[plot$data$language]
+    stopifnot(
+      all(is.finite(plot$data$font_size)),
+      all(plot$data$font_size >= 16 & plot$data$font_size <= 32),
+      isTRUE(all.equal(plot$data$font_size, unname(expected)))
+    )
+  }
+  plot <- with_treemap_settings(NULL, suppressMessages(
+    generate_treemap("test-user", repos[1, ], output_dir, repos[1, ])
+  ), min_font = "18", max_font = "36")
+  stopifnot(plot$data$font_size == 27)
+}))
 
 run_test("all-minor and zero-score languages produce valid chart data", {
   data <- data.frame(
@@ -402,7 +587,9 @@ run_test("pie chart and treemap files use the shared palette and outlined font",
   on.exit(unlink(output_dir, recursive = TRUE), add = TRUE)
 
   suppressMessages(generate_pie_chart("test-user", repos, output_dir, chart_fixture))
-  suppressMessages(generate_treemap("test-user", repos, output_dir, chart_fixture))
+  treemap_plot <- with_treemap_settings(NULL, suppressMessages(
+    generate_treemap("test-user", repos, output_dir, chart_fixture)
+  ))
 
   today <- format(Sys.Date(), "%Y%m%d")
   expected_files <- c(
@@ -421,13 +608,15 @@ run_test("pie chart and treemap files use the shared palette and outlined font",
   style <- visualization_style(c(repos$language, "Other"))
   chart <- prepare_chart_data(repos)
   stopifnot("Other" %in% chart$language, !"Legacy" %in% chart$language)
+  stopifnot(!any(treemap_plot$data$language %in% c("Other", "Legacy")))
   for (svg_name in c("latest.svg", "treemap_latest.svg")) {
     svg <- paste(readLines(file.path(output_dir, svg_name), warn = FALSE), collapse = "\n")
+    languages <- if (svg_name == "latest.svg") chart$language else treemap_plot$data$language
     stopifnot(
       grepl("<path", svg, fixed = TRUE),
       !grepl("<text", svg, fixed = TRUE),
       grepl(style$background, svg, fixed = TRUE),
-      all(vapply(unname(style$colors[chart$language]), grepl, logical(1), x = svg, fixed = TRUE))
+      all(vapply(unname(style$colors[languages]), grepl, logical(1), x = svg, fixed = TRUE))
     )
   }
 }))
