@@ -1,4 +1,5 @@
-setup_visualization_font <- function(font_path = file.path("assets", "DankMono-Regular.otf")) {
+setup_visualization_font <- function(font_path = file.path("assets", "DankMono-Regular.otf"),
+                                     dpi = 120) {
   font_family <- "sans"
 
   if (!file.exists(font_path)) {
@@ -27,6 +28,7 @@ setup_visualization_font <- function(font_path = file.path("assets", "DankMono-R
         sysfonts::font_add("DankMono", regular = font_path)
       }
 
+      showtext::showtext_opts(dpi = dpi)
       showtext::showtext_auto()
       "DankMono"
     },
@@ -34,5 +36,23 @@ setup_visualization_font <- function(font_path = file.path("assets", "DankMono-R
       warning("Failed to load custom font, using default: ", error$message)
       font_family
     }
+  )
+}
+
+visualization_style <- function(languages) {
+  languages <- sort(unique(as.character(languages)))
+  palette <- c(
+    "#7DD3FC", "#A5B4FC", "#5EEAD4", "#FCD34D",
+    "#FDA4AF", "#C4B5FD", "#86EFAC", "#FDBA74",
+    "#67E8F9", "#F0ABFC", "#BEF264", "#CBD5E1"
+  )
+  if (length(languages) > length(palette)) {
+    palette <- grDevices::hcl.colors(length(languages), palette = "Pastel 1")
+  }
+  list(
+    background = "#F8FAFC",
+    foreground = "#0F172A",
+    muted = "#475569",
+    colors = stats::setNames(palette[seq_along(languages)], languages)
   )
 }

@@ -14,13 +14,16 @@
 
 generate_pie_chart <- function(username, repos, dir_name, json_data) {
   font_family <- setup_visualization_font()
+  style <- visualization_style(repos$language)
 
   # Define function to generate chart
   generate_chart <- function(username, repos, colors, total_repos, date_str) {
     par(
-      bg = "white",
+      bg = style$background,
+      col = style$foreground,
+      fg = style$foreground,
       mai = c(0.5, 0.5, 0.8, 0.5),
-      lwd = 1,
+      lwd = 2,
       family = font_family
     )
 
@@ -28,20 +31,22 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
       repos$final_score,
       labels = repos$label,
       col = colors,
+      border = style$background,
       main = paste0(
-        "Repository Distribution by Language\n",
+        "Activity-weighted Language Mix\n",
         "GitHub User: ", username, " | Total Repositories: ", total_repos, "\n",
         "Updated on ", date_str
       ),
       cex = 1,
       cex.main = 0.8,
-      col.main = "#777777",
+      col.main = style$muted,
+      font.main = 2,
       radius = 1
     )
   }
 
   # Generate pie charts in multiple formats
-  colors <- rainbow(nrow(repos))
+  colors <- unname(style$colors[repos$language])
   total_repos <- nrow(json_data)
   date_str <- format(Sys.Date(), "%Y-%m-%d")
   today <- format(Sys.Date(), "%Y%m%d")
@@ -60,7 +65,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
 
   # Generate SVG charts
   for (svg_file in chart_files$svg) {
-    svg(svg_file, width = 10, height = 6)
+    svglite::svglite(svg_file, width = 10, height = 6, bg = style$background)
     generate_chart(username, repos, colors, total_repos, date_str)
     dev.off()
     message("SVG chart saved to ", svg_file)
@@ -68,7 +73,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
 
   # Generate PNG charts
   for (png_file in chart_files$png) {
-    png(png_file, width = 1200, height = 720, res = 120, bg = "white")
+    png(png_file, width = 1200, height = 720, res = 120, bg = style$background)
     generate_chart(username, repos, colors, total_repos, date_str)
     dev.off()
     message("PNG chart saved to ", png_file)

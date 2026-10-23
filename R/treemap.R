@@ -24,6 +24,7 @@
 #' @export
 generate_treemap <- function(username, repos, dir_name, json_data) {
   font_family <- setup_visualization_font()
+  style <- visualization_style(repos$language)
 
   # Prepare data for treemap
   total_repos <- nrow(json_data)
@@ -44,19 +45,20 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
   p <- ggplot2::ggplot(repos_filtered, ggplot2::aes(
     area = final_score,
     fill = language,
-    # label = paste0(language, "\n", percentage, "%\n(", repo_count, " repos)")
     label = paste0(language, "\n", percentage, "%")
   )) +
-    treemapify::geom_treemap(colour = "white", size = 2) +
+    treemapify::geom_treemap(colour = style$background, size = 2) +
     treemapify::geom_treemap_text(
       ggplot2::aes(size = percentage),
       place = "centre",
       family = font_family,
+      colour = style$foreground,
       min.size = 12
     ) +
     ggplot2::scale_size_continuous(range = c(12, 36)) +
+    ggplot2::scale_fill_manual(values = style$colors) +
     ggplot2::labs(
-      title = "Repository Distribution by Language",
+      title = "Activity-weighted Language Mix",
       subtitle = sprintf(
         "GitHub User: %s | Total Repositories: %d | Updated on %s",
         username, total_repos, date_str
@@ -66,13 +68,18 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
     ggplot2::theme(
       plot.title = ggplot2::element_text(
         hjust = 0.5,
-        size = 24
+        size = 20,
+        face = "bold",
+        colour = style$foreground
       ),
       plot.subtitle = ggplot2::element_text(
         hjust = 0.5,
         size = 10,
-        colour = "#777777"
+        colour = style$muted
       ),
+      panel.grid = ggplot2::element_blank(),
+      plot.background = ggplot2::element_rect(fill = style$background, colour = NA),
+      plot.margin = ggplot2::margin(40, 20, 20, 20),
       legend.position = "none"
     )
 
@@ -95,7 +102,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
       plot = p,
       width = 10,
       height = 6,
-      bg = "white"
+      bg = style$background
     )
     message("Treemap SVG saved to ", svg_file)
   }
@@ -108,7 +115,7 @@ generate_treemap <- function(username, repos, dir_name, json_data) {
       width = 10,
       height = 6,
       dpi = 120,
-      bg = "white"
+      bg = style$background
     )
     message("Treemap PNG saved to ", png_file)
   }
