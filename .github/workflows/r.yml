@@ -12,7 +12,7 @@
 # Last Modified: 2025-10-25 23:56:06
 ##
 
-name: GitHub Repository Language Statistics
+name: GitHub Development Language Profile
 
 on:
   # Run monthly on the 1st day at 00:00 UTC
@@ -81,6 +81,9 @@ jobs:
           Rscript -e '
           packages <- c("httr", "jsonlite", "dplyr", "showtext", "sysfonts", "ggplot2", "treemapify", "svglite")
           new_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+          if (requireNamespace("ggplot2", quietly=TRUE) && packageVersion("ggplot2") < "3.5.0") {
+            new_packages <- unique(c(new_packages, "ggplot2"))
+          }
           if(length(new_packages)) {
             install.packages(new_packages, repos="https://cloud.r-project.org", dependencies=NA)
           }
@@ -92,8 +95,9 @@ jobs:
 
       - name: Run analysis
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.LANGSTAT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_USERNAME: ${{ inputs.github_username || github.repository_owner }}
+          GITHUB_PER_PAGE: ${{ vars.GITHUB_PER_PAGE || '100' }}
           TREEMAP_MIN_PERCENTAGE: ${{ vars.TREEMAP_MIN_PERCENTAGE || '2' }}
           TREEMAP_MIN_FONT_SIZE: ${{ vars.TREEMAP_MIN_FONT_SIZE || '16' }}
           TREEMAP_MAX_FONT_SIZE: ${{ vars.TREEMAP_MAX_FONT_SIZE || '32' }}

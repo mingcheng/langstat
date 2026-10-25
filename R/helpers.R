@@ -5,13 +5,16 @@ load_local_env <- function(path = ".env") {
 
   previous <- Sys.getenv()
   loaded <- FALSE
-  on.exit({
-    if (!loaded) {
-      Sys.unsetenv(setdiff(names(Sys.getenv()), names(previous)))
-    }
-    # Exported environment variables take precedence over local configuration.
-    invisible(do.call(Sys.setenv, as.list(previous)))
-  }, add = TRUE)
+  on.exit(
+    {
+      if (!loaded) {
+        Sys.unsetenv(setdiff(names(Sys.getenv()), names(previous)))
+      }
+      # Exported environment variables take precedence over local configuration.
+      invisible(do.call(Sys.setenv, as.list(previous)))
+    },
+    add = TRUE
+  )
 
   loaded <- withCallingHandlers(
     readRenviron(path),
@@ -91,19 +94,38 @@ visualization_style <- function(languages) {
   )
 }
 
+profile_chart_subtitle <- function(username, summary) {
+  required <- c(
+    "window_start", "window_end", "public_repositories", "scored_repositories",
+    "scored_owned_repositories", "scored_contributed_repositories"
+  )
+  if (!is.list(summary) || !all(required %in% names(summary))) {
+    stop("Charts require an activity profile summary with distinct repository counts.")
+  }
+  sprintf(
+    paste0(
+      "GitHub: %s | Scored public repos: %d/%d (owned %d, contributed %d)\n",
+      "%s to %s UTC | Active-day weighted"
+    ),
+    username, summary$scored_repositories, summary$public_repositories,
+    summary$scored_owned_repositories, summary$scored_contributed_repositories,
+    summary$window_start, summary$window_end
+  )
+}
+
 prepare_chart_data <- function(repos, max_languages = Inf, min_percentage = 1,
                                group_other = TRUE) {
   total_score <- sum(repos$final_score)
   if (any(!is.finite(repos$final_score)) || any(repos$final_score < 0) ||
-      !is.finite(total_score) || total_score <= 0) {
+    !is.finite(total_score) || total_score <= 0) {
     stop("Charts require non-negative scores with a positive finite total.")
   }
   if (!is.numeric(max_languages) || length(max_languages) != 1L || is.na(max_languages) ||
-      max_languages < 1 || max_languages != floor(max_languages)) {
+    max_languages < 1 || max_languages != floor(max_languages)) {
     stop("max_languages must be a positive integer or Inf.")
   }
   if (!is.numeric(min_percentage) || length(min_percentage) != 1L ||
-      !is.finite(min_percentage) || min_percentage < 0 || min_percentage > 100) {
+    !is.finite(min_percentage) || min_percentage < 0 || min_percentage > 100) {
     stop("min_percentage must be a finite number between 0 and 100.")
   }
   chart_data <- repos |>
@@ -122,7 +144,6 @@ prepare_chart_data <- function(repos, max_languages = Inf, min_percentage = 1,
     dplyr::group_by(language) |>
     dplyr::summarise(
       final_score = sum(final_score),
-      repo_count = sum(repo_count),
       .groups = "drop"
     ) |>
     dplyr::filter(final_score > 0) |>

@@ -28,6 +28,10 @@ if (length(missing_packages) > 0) {
   )
 }
 
+if (utils::packageVersion("ggplot2") < "3.5.0") {
+  stop("Treemap typography requires ggplot2 >= 3.5.0; update ggplot2 first.")
+}
+
 source_module <- function(path) {
   tryCatch(
     suppressMessages(source(path)),
@@ -36,33 +40,32 @@ source_module <- function(path) {
 }
 
 invisible(lapply(
-  c("R/helpers.R", "R/fetch.R", "R/plot.R", "R/pie.R", "R/treemap.R"),
+  c("R/helpers.R", "R/profile.R", "R/fetch.R", "R/pie.R", "R/treemap.R"),
   source_module
 ))
 
 load_local_env()
 
 # Get GitHub username from environment or use default
-username <- Sys.getenv("GITHUB_USERNAME", unset = "mingcheng")
-if (username == "") {
-  stop("Please set the GITHUB_USERNAME environment variable.")
-}
+username <- validate_github_username(Sys.getenv("GITHUB_USERNAME", unset = "mingcheng"))
 
-message("Analyzing GitHub user: ", username)
+message("Analyzing public GitHub development activity for: ", username)
 
 # Setup directories and file paths
-today <- format(Sys.Date(), "%Y%m%d")
+reference_date <- as.Date(Sys.time(), tz = "UTC")
+today <- format(reference_date, "%Y%m%d")
 dir_name <- file.path("data", username)
-dir.create(dir_name, showWarnings = FALSE, recursive = TRUE)
+if (!dir.exists(dir_name) && !dir.create(dir_name, recursive = TRUE)) {
+  stop("Could not create the output directory: ", dir_name)
+}
 
-raw_file_name <- file.path(dir_name, paste0("raw_", today, ".json"))
+raw_file_name <- file.path(dir_name, paste0("activity_v2_", today, ".json"))
 plotted_file_name <- file.path(dir_name, paste0("plotted_", today, ".csv"))
+repository_file_name <- file.path(dir_name, paste0("repositories_", today, ".csv"))
+summary_file_name <- file.path(dir_name, paste0("summary_", today, ".json"))
 
-# Fetch or load cached repository data
-if (file.exists(raw_file_name)) {
-  json_data <- jsonlite::fromJSON(raw_file_name)
-  message("Loaded cached data from ", raw_file_name)
-} else {
+snapshot <- read_activity_cache(raw_file_name, username, reference_date)
+if (is.null(snapshot)) {
   # Check for HTTP proxy settings
   proxy <- Sys.getenv("HTTP_PROXY", unset = "")
   if (!nzchar(proxy)) {
@@ -72,29 +75,37 @@ if (file.exists(raw_file_name)) {
     message("Using configured HTTP proxy.")
   }
 
-  json_data <- fetch_json(username, proxy)
-  if (is.null(json_data)) {
-    stop("Failed to fetch data from GitHub API")
-  }
-  message("Fetched ", nrow(json_data), " repositories")
-
-  jsonlite::write_json(json_data, raw_file_name, pretty = TRUE, auto_unbox = TRUE)
-  message("Raw data saved to ", raw_file_name)
+  snapshot <- fetch_activity_snapshot(username, reference_date, proxy)
+  write_activity_cache(snapshot, raw_file_name)
+  message("Public activity evidence saved to ", raw_file_name)
+} else {
+  message("Loaded validated activity snapshot from ", raw_file_name)
 }
 
-# Process and analyze repository data
-repos <- plot_repos(json_data)
-if (is.null(repos)) {
-  stop("Failed to process repository data")
+profile <- build_activity_profile(snapshot)
+if (profile$summary$status != "ok") {
+  stop(
+    "No scorable public development activity between ",
+    snapshot$metadata$window_start, " and ", snapshot$metadata$window_end,
+    ". Private work, other branches and unlinked commit authors are not covered.",
+    " Existing charts have not been replaced."
+  )
 }
-message("Successfully processed repository data")
+message(
+  "Scoring ", profile$summary$scored_repositories, " distinct public repositories (",
+  profile$summary$scored_owned_repositories, " owned, ",
+  profile$summary$scored_contributed_repositories, " contributed) across ",
+  nrow(profile$languages), " languages."
+)
 
 # Export statistical results
-write.csv(repos, plotted_file_name, row.names = FALSE)
-message("Statistical data saved to ", plotted_file_name)
+write.csv(profile$languages, plotted_file_name, row.names = FALSE, na = "")
+write.csv(profile$repositories, repository_file_name, row.names = FALSE, na = "")
+jsonlite::write_json(profile$summary, summary_file_name, pretty = TRUE, auto_unbox = TRUE)
+message("Language scores and repository evidence exported.")
 
-generate_pie_chart(username, repos, dir_name, json_data)
+generate_pie_chart(username, profile$languages, dir_name, profile$summary)
 
-generate_treemap(username, repos, dir_name, json_data)
+generate_treemap(username, profile$languages, dir_name, profile$summary)
 
 message("Analysis complete!")

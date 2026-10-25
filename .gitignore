@@ -42,6 +42,11 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# Local credentials
+.env
+.env.*
+!.env.example
+
 #################################################
 # MAC OS IGNORABLES
 #################################################

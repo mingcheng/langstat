@@ -12,14 +12,14 @@
 # Last Modified: 2025-10-26 11:19:07
 ##
 
-generate_pie_chart <- function(username, repos, dir_name, json_data) {
+generate_pie_chart <- function(username, repos, dir_name, summary) {
   font_family <- setup_visualization_font()
   style <- visualization_style(c(repos$language, "Other"))
   chart_data <- prepare_chart_data(repos)
-  scored_repos <- sum(repos$repo_count)
+  subtitle <- profile_chart_subtitle(username, summary)
 
   # Define function to generate chart
-  generate_chart <- function(username, repos, colors, total_repos, date_str) {
+  generate_chart <- function(repos, colors) {
     par(
       bg = style$background,
       col = style$foreground,
@@ -35,10 +35,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
       col = colors,
       border = style$background,
       main = paste0(
-        "Activity-weighted Language Mix\n",
-        "GitHub User: ", username, " | Scored Repos: ",
-        scored_repos, "/", total_repos, "\n",
-        "Updated on ", date_str
+        "Public Development Language Profile\n", subtitle
       ),
       cex = 1,
       cex.main = 0.8,
@@ -46,13 +43,15 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
       font.main = 2,
       radius = 1
     )
+    mtext(
+      "Default-branch commits + merged PRs; repository languages are a proxy, not proficiency.",
+      side = 1, line = 1, cex = 0.65, col = style$muted
+    )
   }
 
   # Generate pie charts in multiple formats
   colors <- unname(style$colors[chart_data$language])
-  total_repos <- nrow(json_data)
-  date_str <- format(Sys.Date(), "%Y-%m-%d")
-  today <- format(Sys.Date(), "%Y%m%d")
+  today <- format(as.Date(summary$window_end), "%Y%m%d")
 
   # Define chart files
   chart_files <- list(
@@ -69,7 +68,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
   # Generate SVG charts
   for (svg_file in chart_files$svg) {
     svglite::svglite(svg_file, width = 10, height = 6, bg = style$background)
-    generate_chart(username, chart_data, colors, total_repos, date_str)
+    generate_chart(chart_data, colors)
     dev.off()
     message("SVG chart saved to ", svg_file)
   }
@@ -77,7 +76,7 @@ generate_pie_chart <- function(username, repos, dir_name, json_data) {
   # Generate PNG charts
   for (png_file in chart_files$png) {
     png(png_file, width = 1200, height = 720, res = 120, bg = style$background)
-    generate_chart(username, chart_data, colors, total_repos, date_str)
+    generate_chart(chart_data, colors)
     dev.off()
     message("PNG chart saved to ", png_file)
   }
