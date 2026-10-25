@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "model_version": "activity-days-v1",
+  "username": "mingcheng",
+  "visibility": "public",
+  "window_days": 365,
+  "half_life_days": 365,
+  "window_start": "2025-10-26",
+  "window_end": "2026-10-25",
+  "collected_at": "2026-10-25T16:34:46Z",
+  "sources": ["owned_default_branch_commits", "public_commit_search", "merged_pull_requests"],
+  "excluded_author_records": 1,
+  "complete": true,
+  "status": "ok",
+  "public_repositories": 141,
+  "owned_repositories": 77,
+  "contributed_repositories": 64,
+  "scored_repositories": 66,
+  "scored_owned_repositories": 20,
+  "scored_contributed_repositories": 46,
+  "user_active_days": 156,
+  "evidence_count": 861
+}
